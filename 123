@@ -1,0 +1,175 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- Settings
+local targetCircleSize = 80
+local espEnabled = true
+local lockTargetEnabled = true
+local highlightList = {}
+local currentTarget = nil
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+
+-- วงกลางจอ
+local targetCircle = Instance.new("Frame", gui)
+targetCircle.Size = UDim2.new(0, targetCircleSize, 0, targetCircleSize)
+targetCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+targetCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+targetCircle.BackgroundTransparency = 1
+targetCircle.BorderSizePixel = 3
+targetCircle.BorderColor3 = Color3.fromRGB(255,0,0)
+targetCircle.ZIndex = 10
+
+-- เมนู GUI
+local menuFrame = Instance.new("Frame", gui)
+menuFrame.Size = UDim2.new(0, 220, 0, 180)
+menuFrame.Position = UDim2.new(0.05,0,0.6,0)
+menuFrame.Active = true
+menuFrame.Draggable = true
+menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+menuFrame.BorderSizePixel = 2
+menuFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+
+local title = Instance.new("TextLabel", menuFrame)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "🎯 ตั้งค่า"
+title.TextScaled = true
+title.BackgroundColor3 = Color3.fromRGB(255,0,0)
+title.TextColor3 = Color3.new(1,1,1)
+
+-- ปุ่มเปิด/ปิด ESP
+local espButton = Instance.new("TextButton", menuFrame)
+espButton.Size = UDim2.new(1,-20,0,40)
+espButton.Position = UDim2.new(0,10,0,40)
+espButton.Text = "ESP: เปิด"
+espButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+espButton.TextColor3 = Color3.new(1,1,1)
+
+espButton.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    if espEnabled then
+        espButton.Text = "ESP: เปิด"
+        espButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        espButton.Text = "ESP: ปิด"
+        espButton.BackgroundColor3 = Color3.fromRGB(150,0,0)
+        for _,hl in pairs(highlightList) do
+            if hl and hl.Parent then hl:Destroy() end
+        end
+        highlightList = {}
+        currentTarget = nil
+    end
+end)
+
+-- ปุ่มเปิด/ปิด Lock Target
+local lockButton = Instance.new("TextButton", menuFrame)
+lockButton.Size = UDim2.new(1,-20,0,40)
+lockButton.Position = UDim2.new(0,10,0,90)
+lockButton.Text = "Lock Target: เปิด"
+lockButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+lockButton.TextColor3 = Color3.new(1,1,1)
+
+lockButton.MouseButton1Click:Connect(function()
+    lockTargetEnabled = not lockTargetEnabled
+    if lockTargetEnabled then
+        lockButton.Text = "Lock Target: เปิด"
+        lockButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        lockButton.Text = "Lock Target: ปิด"
+        lockButton.BackgroundColor3 = Color3.fromRGB(150,0,0)
+        currentTarget = nil
+    end
+end)
+
+-- ปุ่มปรับขนาดวง
+local sizeLabel = Instance.new("TextLabel", menuFrame)
+sizeLabel.Size = UDim2.new(1,-20,0,30)
+sizeLabel.Position = UDim2.new(0,10,0,140)
+sizeLabel.Text = "ขนาดวง: "..targetCircleSize
+sizeLabel.TextScaled = true
+sizeLabel.BackgroundTransparency = 1
+sizeLabel.TextColor3 = Color3.new(1,1,1)
+
+local increaseCircle = Instance.new("TextButton", menuFrame)
+increaseCircle.Size = UDim2.new(0.45,-10,0,30)
+increaseCircle.Position = UDim2.new(0,10,0,170)
+increaseCircle.Text = "+"
+increaseCircle.BackgroundColor3 = Color3.fromRGB(0,150,0)
+
+local decreaseCircle = Instance.new("TextButton", menuFrame)
+decreaseCircle.Size = UDim2.new(0.45,-10,0,30)
+decreaseCircle.Position = UDim2.new(0.5,0,0,170)
+decreaseCircle.Text = "-"
+decreaseCircle.BackgroundColor3 = Color3.fromRGB(150,0,0)
+
+increaseCircle.MouseButton1Click:Connect(function()
+    targetCircleSize = math.clamp(targetCircleSize+10,20,300)
+    targetCircle.Size = UDim2.new(0,targetCircleSize,0,targetCircleSize)
+    sizeLabel.Text = "ขนาดวง: "..targetCircleSize
+end)
+
+decreaseCircle.MouseButton1Click:Connect(function()
+    targetCircleSize = math.clamp(targetCircleSize-10,20,300)
+    targetCircle.Size = UDim2.new(0,targetCircleSize,0,targetCircleSize)
+    sizeLabel.Text = "ขนาดวง: "..targetCircleSize
+end)
+
+-- ฟังก์ชันตรวจสอบวง
+local function isInCircle(pos)
+    local screenPos, onScreen = camera:WorldToViewportPoint(pos)
+    if not onScreen then return false end
+    local centerX, centerY = camera.ViewportSize.X/2, camera.ViewportSize.Y/2
+    local dx = screenPos.X - centerX
+    local dy = screenPos.Y - centerY
+    return (dx*dx + dy*dy) <= (targetCircleSize/2)^2
+end
+
+-- ฟังก์ชัน Highlight
+local function highlightEnemy(character)
+    if highlightList[character] then return end
+    local hl = Instance.new("Highlight")
+    hl.FillColor = Color3.fromRGB(255,0,0)
+    hl.OutlineColor = Color3.fromRGB(255,0,0)
+    hl.Parent = character
+    highlightList[character] = hl
+end
+
+-- ลูปตรวจจับศัตรูและล็อคเป้า
+RunService.RenderStepped:Connect(function()
+    if not espEnabled then return end
+    local closestDist = math.huge
+    local closestEnemy = nil
+    
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local root = plr.Character.HumanoidRootPart
+            if isInCircle(root.Position) then
+                highlightEnemy(plr.Character)
+                local dist = (root.Position - camera.CFrame.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closestEnemy = plr.Character
+                end
+            end
+        end
+    end
+    
+    if lockTargetEnabled then
+        currentTarget = closestEnemy
+        -- หมุนกล้องไปที่เป้าหมาย (ตัวอย่าง)
+        if currentTarget and currentTarget:FindFirstChild("HumanoidRootPart") then
+            local targetPos = currentTarget.HumanoidRootPart.Position
+            local camCFrame = CFrame.new(camera.CFrame.Position, targetPos)
+            camera.CFrame = camCFrame
+        end
+    else
+        currentTarget = nil
+    end
+end)
