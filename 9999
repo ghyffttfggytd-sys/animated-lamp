@@ -1,0 +1,103 @@
+-- Services
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+
+-- ปุ่มเปิด/ปิดเมนู
+local toggleButton = Instance.new("TextButton", gui)
+toggleButton.Size = UDim2.new(0, 80, 0, 40)
+toggleButton.Position = UDim2.new(0,10,0,10)
+toggleButton.Text = "เมนู"
+toggleButton.BackgroundColor3 = Color3.fromRGB(255,50,50)
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.TextScaled = true
+toggleButton.BorderSizePixel = 0
+toggleButton.ZIndex = 10
+
+-- Frame เมนูหลัก
+local menuFrame = Instance.new("Frame", gui)
+menuFrame.Size = UDim2.new(0, 250, 0, 300)
+menuFrame.Position = UDim2.new(0, 10, 0, 60)
+menuFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+menuFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+menuFrame.BorderSizePixel = 2
+menuFrame.Visible = false
+menuFrame.Active = true
+menuFrame.Draggable = true
+
+-- ชื่อเมนู
+local title = Instance.new("TextLabel", menuFrame)
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundColor3 = Color3.fromRGB(255,0,0)
+title.Text = "🎮 เมนูตั้งค่า"
+title.TextScaled = true
+title.TextColor3 = Color3.new(1,1,1)
+title.BorderSizePixel = 0
+
+-- ฟังก์ชันสร้างปุ่มสวย
+local function createButton(parent, text, posY, color, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(1,-20,0,40)
+    btn.Position = UDim2.new(0,10,0,posY)
+    btn.Text = text
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.TextScaled = true
+    btn.BorderSizePixel = 0
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- ตัวแปรเปิด/ปิดระบบ
+local espEnabled = true
+local lockEnabled = true
+local circleEnabled = true
+
+-- ปุ่ม ESP
+createButton(menuFrame, "ESP: เปิด", 50, Color3.fromRGB(0,150,0), function(btn)
+    espEnabled = not espEnabled
+    if espEnabled then
+        btn.Text = "ESP: เปิด"
+        btn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        btn.Text = "ESP: ปิด"
+        btn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    end
+end)
+
+-- ปุ่ม Lock Target
+createButton(menuFrame, "Lock Target: เปิด", 100, Color3.fromRGB(0,150,0), function(btn)
+    lockEnabled = not lockEnabled
+    if lockEnabled then
+        btn.Text = "Lock Target: เปิด"
+        btn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        btn.Text = "Lock Target: ปิด"
+        btn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    end
+end)
+
+-- ปุ่มวงกลางจอ
+createButton(menuFrame, "วงกลางจอ: เปิด", 150, Color3.fromRGB(0,150,0), function(btn)
+    circleEnabled = not circleEnabled
+    if circleEnabled then
+        btn.Text = "วงกลางจอ: เปิด"
+        btn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        btn.Text = "วงกลางจอ: ปิด"
+        btn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    end
+end)
+
+-- ปุ่มปิดเมนู
+createButton(menuFrame, "ปิดเมนู", 200, Color3.fromRGB(255,50,50), function()
+    menuFrame.Visible = false
+end)
+
+-- สลับการเปิด/ปิดเมนู
+toggleButton.MouseButton1Click:Connect(function()
+    menuFrame.Visible = not menuFrame.Visible
+end)
