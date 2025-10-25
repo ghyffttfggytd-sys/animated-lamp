@@ -1,0 +1,350 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- Settings
+local aimRadius = 120 -- เปลี่ยนชื่อจาก targetCircleSize เป็น aimRadius เพื่อให้สอดคล้องกับ UI
+local espEnabled = true
+local lockTargetEnabled = true
+local highlightList = {}
+local currentTarget = nil
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+gui.Name = "CustomAimGUI"
+
+-- Crosshair (ปรับปรุงให้ทันสมัยขึ้น)
+local crosshairFrame = Instance.new("Frame", gui)
+crosshairFrame.Size = UDim2.new(0, 50, 0, 50)
+crosshairFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+crosshairFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+crosshairFrame.BackgroundTransparency = 1
+crosshairFrame.ZIndex = 10
+
+-- Horizontal line
+local hLine = Instance.new("Frame", crosshairFrame)
+hLine.Size = UDim2.new(1, 0, 0, 2)
+hLine.Position = UDim2.new(0, 0, 0.5, -1)
+hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+hLine.BackgroundTransparency = 0
+hLine.BorderSizePixel = 0
+
+-- Vertical line
+local vLine = Instance.new("Frame", crosshairFrame)
+vLine.Size = UDim2.new(0, 2, 1, 0)
+vLine.Position = UDim2.new(0.5, -1, 0, 0)
+vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+vLine.BackgroundTransparency = 0
+vLine.BorderSizePixel = 0
+
+-- Center Dot
+local centerDot = Instance.new("Frame", crosshairFrame)
+centerDot.Size = UDim2.new(0, 4, 0, 4)
+centerDot.Position = UDim2.new(0.5, -2, 0.5, -2)
+centerDot.AnchorPoint = Vector2.new(0.5, 0.5)
+centerDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+centerDot.BackgroundTransparency = 0
+centerDot.BorderSizePixel = 0
+centerDot.CornerRadius = UDim.new(1,0) -- กลม
+
+-- Aim Radius Visual (วงกลางจอ)
+local aimCircle = Instance.new("Frame", gui)
+aimCircle.Size = UDim2.new(0, aimRadius * 2, 0, aimRadius * 2)
+aimCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+aimCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+aimCircle.BackgroundTransparency = 1
+aimCircle.BorderSizePixel = 2
+aimCircle.BorderColor3 = Color3.fromRGB(0, 200, 255) -- สีฟ้า
+aimCircle.ZIndex = 9
+
+-- Menu GUI (ปรับปรุงการออกแบบ)
+local menuFrame = Instance.new("Frame", gui)
+menuFrame.Size = UDim2.new(0, 260, 0, 300) -- ขนาดใหญ่ขึ้นเล็กน้อย
+menuFrame.Position = UDim2.new(0.02, 0, 0.5, -150) -- จัดวางทางซ้ายล่าง
+menuFrame.AnchorPoint = Vector2.new(0, 0.5)
+menuFrame.Active = true
+menuFrame.Draggable = true
+menuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35) -- สีเข้มขึ้น
+menuFrame.BorderSizePixel = 2
+menuFrame.BorderColor3 = Color3.fromRGB(0, 150, 255) -- สีฟ้า
+menuFrame.CornerRadius = UDim.new(0.1, 0) -- ทำให้ขอบมน
+menuFrame.ClipsDescendants = true
+
+local uiListLayout = Instance.new("UIListLayout", menuFrame)
+uiListLayout.FillDirection = Enum.FillDirection.Vertical
+uiListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+uiListLayout.Padding = UDim.new(0, 10)
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local uiPadding = Instance.new("UIPadding", menuFrame)
+uiPadding.PaddingTop = UDim.new(0, 10)
+uiPadding.PaddingBottom = UDim.new(0, 10)
+
+local title = Instance.new("TextLabel", menuFrame)
+title.Size = UDim2.new(1, -20, 0, 40)
+title.Text = "⚙️ SETTINGS"
+title.TextScaled = true
+title.Font = Enum.Font.SourceSansBold
+title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+title.LayoutOrder = 1
+title.CornerRadius = UDim.new(0.1, 0)
+
+-- Function to create a toggle button (สวิตช์เปิด/ปิด)
+local function createToggleButton(parent, text, initialState, callback)
+    local frame = Instance.new("Frame", parent)
+    frame.Size = UDim2.new(1, -20, 0, 40)
+    frame.BackgroundTransparency = 1
+    frame.LayoutOrder = parent.UIListLayout.LayoutOrder + 10 -- เพิ่ม layout order
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Text = text
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSans
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.BackgroundTransparency = 1
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local toggleButton = Instance.new("ImageButton", frame)
+    toggleButton.Size = UDim2.new(0.3, 0, 1, 0)
+    toggleButton.Position = UDim2.new(0.7, 0, 0, 0)
+    toggleButton.BackgroundTransparency = 1
+    toggleButton.ScaleType = Enum.ScaleType.Fit
+    toggleButton.ImageRectOffset = Vector2.new(284, 124) -- พื้นหลังปุ่มสลับจาก Roblox
+    toggleButton.ImageRectSize = Vector2.new(46, 26)
+    toggleButton.Image = "rbxassetid://6034176466" -- ใช้ Image ID สำหรับปุ่มสลับ (คุณอาจต้องหา Image ID ที่เหมาะสม)
+    toggleButton.ZIndex = 2
+
+    local state = initialState
+    local function updateToggleVisual()
+        if state then
+            toggleButton.ImageColor3 = Color3.fromRGB(0, 200, 0) -- สีเขียวเมื่อเปิด
+            toggleButton.ImageRectOffset = Vector2.new(284, 124) -- รูปภาพสำหรับสถานะ 'เปิด'
+        else
+            toggleButton.ImageColor3 = Color3.fromRGB(200, 0, 0) -- สีแดงเมื่อปิด
+            toggleButton.ImageRectOffset = Vector2.new(236, 124) -- รูปภาพสำหรับสถานะ 'ปิด'
+        end
+    end
+
+    toggleButton.MouseButton1Click:Connect(function()
+        state = not state
+        updateToggleVisual()
+        callback(state)
+    end)
+
+    updateToggleVisual() -- ตั้งค่าเริ่มต้น
+
+    return state, toggleButton -- ส่งคืนสถานะและปุ่ม toggle
+end
+
+-- ESP Toggle
+local espState, espToggle = createToggleButton(menuFrame, "ESP: STATUS", espEnabled, function(newState)
+    espEnabled = newState
+    if not espEnabled then
+        for _, hl in pairs(highlightList) do
+            if hl and hl.Parent then hl:Destroy() end
+        end
+        highlightList = {}
+    end
+end)
+espToggle.Parent.LayoutOrder = 2 -- จัดเรียง ESP
+
+-- Lock Target Toggle
+local lockState, lockToggle = createToggleButton(menuFrame, "LOCK TARGET", lockTargetEnabled, function(newState)
+    lockTargetEnabled = newState
+    if not lockTargetEnabled then
+        currentTarget = nil
+    end
+end)
+lockToggle.Parent.LayoutOrder = 3 -- จัดเรียง Lock Target
+
+-- Aim Radius Slider
+local sliderFrame = Instance.new("Frame", menuFrame)
+sliderFrame.Size = UDim2.new(1, -20, 0, 50)
+sliderFrame.BackgroundTransparency = 1
+sliderFrame.LayoutOrder = 4
+
+local sliderLabel = Instance.new("TextLabel", sliderFrame)
+sliderLabel.Size = UDim2.new(1, 0, 0, 20)
+sliderLabel.Text = "AIM RADIUS: " .. aimRadius
+sliderLabel.TextScaled = true
+sliderLabel.Font = Enum.Font.SourceSans
+sliderLabel.TextColor3 = Color3.new(1, 1, 1)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local slider = Instance.new("Frame", sliderFrame)
+slider.Size = UDim2.new(1, 0, 0, 10)
+slider.Position = UDim2.new(0, 0, 0.5, 5)
+slider.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+slider.BorderSizePixel = 1
+slider.BorderColor3 = Color3.fromRGB(0, 150, 255)
+slider.CornerRadius = UDim.new(0.5, 0)
+
+local sliderHandle = Instance.new("Frame", slider)
+sliderHandle.Size = UDim2.new(0, 20, 0, 20)
+sliderHandle.Position = UDim2.new(0, -10, 0.5, -10)
+sliderHandle.AnchorPoint = Vector2.new(0, 0.5)
+sliderHandle.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+sliderHandle.BorderSizePixel = 1
+sliderHandle.BorderColor3 = Color3.fromRGB(0, 100, 200)
+sliderHandle.CornerRadius = UDim.new(0.5, 0)
+
+local isDragging = false
+local function updateSlider(xPos)
+    local minX = 0
+    local maxX = slider.AbsoluteSize.X - sliderHandle.AbsoluteSize.X
+    local newX = math.clamp(xPos - slider.AbsolutePosition.X - sliderHandle.AbsoluteSize.X / 2, minX, maxX)
+    local percentage = newX / maxX
+    
+    aimRadius = math.floor(20 + percentage * (300 - 20)) -- 20-300
+    aimCircle.Size = UDim2.new(0, aimRadius * 2, 0, aimRadius * 2)
+    sliderHandle.Position = UDim2.new(percentage, 0, 0.5, -10)
+    sliderLabel.Text = "AIM RADIUS: " .. aimRadius
+end
+
+sliderHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = true
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isDragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider(input.Position.X)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if isDragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        isDragging = false
+    end
+end)
+
+-- Initialize slider position
+updateSlider(slider.AbsolutePosition.X + (aimRadius - 20) / (300 - 20) * (slider.AbsoluteSize.X - sliderHandle.AbsoluteSize.X) + sliderHandle.AbsoluteSize.X / 2)
+
+-- ปุ่ม +/- สำหรับ Aim Radius
+local adjustButtonsFrame = Instance.new("Frame", menuFrame)
+adjustButtonsFrame.Size = UDim2.new(1, -20, 0, 40)
+adjustButtonsFrame.BackgroundTransparency = 1
+adjustButtonsFrame.LayoutOrder = 5
+
+local increaseButton = Instance.new("TextButton", adjustButtonsFrame)
+increaseButton.Size = UDim2.new(0.48, 0, 1, 0)
+increaseButton.Position = UDim2.new(0, 0, 0, 0)
+increaseButton.Text = "+"
+increaseButton.Font = Enum.Font.SourceSansBold
+increaseButton.TextSize = 24
+increaseButton.TextColor3 = Color3.new(1,1,1)
+increaseButton.BackgroundColor3 = Color3.fromRGB(0,180,0)
+increaseButton.CornerRadius = UDim.new(0.1,0)
+
+local decreaseButton = Instance.new("TextButton", adjustButtonsFrame)
+decreaseButton.Size = UDim2.new(0.48, 0, 1, 0)
+decreaseButton.Position = UDim2.new(0.52, 0, 0, 0)
+decreaseButton.Text = "-"
+decreaseButton.Font = Enum.Font.SourceSansBold
+decreaseButton.TextSize = 24
+decreaseButton.TextColor3 = Color3.new(1,1,1)
+decreaseButton.BackgroundColor3 = Color3.fromRGB(180,0,0)
+decreaseButton.CornerRadius = UDim.new(0.1,0)
+
+increaseButton.MouseButton1Click:Connect(function()
+    aimRadius = math.clamp(aimRadius + 10, 20, 300)
+    aimCircle.Size = UDim2.new(0, aimRadius * 2, 0, aimRadius * 2)
+    sliderLabel.Text = "AIM RADIUS: " .. aimRadius
+    updateSlider(slider.AbsolutePosition.X + (aimRadius - 20) / (300 - 20) * (slider.AbsoluteSize.X - sliderHandle.AbsoluteSize.X) + sliderHandle.AbsoluteSize.X / 2)
+end)
+
+decreaseButton.MouseButton1Click:Connect(function()
+    aimRadius = math.clamp(aimRadius - 10, 20, 300)
+    aimCircle.Size = UDim2.new(0, aimRadius * 2, 0, aimRadius * 2)
+    sliderLabel.Text = "AIM RADIUS: " .. aimRadius
+    updateSlider(slider.AbsolutePosition.X + (aimRadius - 20) / (300 - 20) * (slider.AbsoluteSize.X - sliderHandle.AbsoluteSize.X) + sliderHandle.AbsoluteSize.X / 2)
+end)
+
+-- ฟังก์ชันตรวจสอบวง (อัปเดตชื่อตัวแปร)
+local function isInAimRadius(pos)
+    local screenPos, onScreen = camera:WorldToViewportPoint(pos)
+    if not onScreen then return false end
+    local centerX, centerY = camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2
+    local dx = screenPos.X - centerX
+    local dy = screenPos.Y - centerY
+    return (dx * dx + dy * dy) <= aimRadius ^ 2
+end
+
+-- ฟังก์ชันตรวจสอบว่าไม่มีสิ่งกีดขวาง (ไม่ล็อคหลังผนัง)
+local function canSeeTarget(root)
+    local origin = camera.CFrame.Position
+    local direction = (root.Position - origin)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {player.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    local result = Workspace:Raycast(origin, direction, raycastParams)
+    return not result or result.Instance:IsDescendantOf(root.Parent)
+end
+
+-- ฟังก์ชัน Highlight (ยังคงใช้ Highlight เดิม)
+local function highlightEnemy(character)
+    if highlightList[character] then return end
+    local hl = Instance.new("Highlight")
+    hl.FillColor = Color3.fromRGB(255, 0, 0)
+    hl.OutlineColor = Color3.fromRGB(255, 0, 0)
+    hl.Parent = character
+    highlightList[character] = hl
+end
+
+-- Loop ตรวจจับศัตรูและล็อคเป้า + ESP ใหม่
+RunService.RenderStepped:Connect(function()
+    -- ESP ใหม่: ไฮไลท์ทุกตัว
+    if espEnabled then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character then
+                highlightEnemy(plr.Character)
+            end
+        end
+    else
+        -- ลบ Highlight ทั้งหมดเมื่อ ESP ปิด
+        for char, hl in pairs(highlightList) do
+            if hl and hl.Parent then hl:Destroy() end
+            highlightList[char] = nil
+        end
+    end
+
+    -- ล็อคเป้าเฉพาะศัตรูในวงและไม่อยู่หลังผนัง
+    if lockTargetEnabled then
+        local closestDist = math.huge
+        local closestEnemy = nil
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local root = plr.Character.HumanoidRootPart
+                if isInAimRadius(root.Position) and canSeeTarget(root) then
+                    local dist = (root.Position - camera.CFrame.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closestEnemy = plr.Character
+                    end
+                end
+            end
+        end
+        
+        currentTarget = closestEnemy
+        if currentTarget and currentTarget:FindFirstChild("HumanoidRootPart") then
+            local targetPos = currentTarget.HumanoidRootPart.Position
+            -- ทำให้การเล็งดูเป็นธรรมชาติมากขึ้น (smooth aiming)
+            camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPos), 0.2) -- ค่า 0.2 ปรับได้ตามความต้องการ
+        end
+    else
+        currentTarget = nil
+    end
+end)
