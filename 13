@@ -1,0 +1,74 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+-- Settings
+local espEnabled = true
+local highlightList = {}
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+
+-- เมนู GUI
+local menuFrame = Instance.new("Frame", gui)
+menuFrame.Size = UDim2.new(0, 200, 0, 100)
+menuFrame.Position = UDim2.new(0.05,0,0.6,0)
+menuFrame.Active = true
+menuFrame.Draggable = true
+menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+menuFrame.BorderSizePixel = 2
+menuFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+
+local title = Instance.new("TextLabel", menuFrame)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "🎯 ESP"
+title.TextScaled = true
+title.BackgroundColor3 = Color3.fromRGB(255,0,0)
+title.TextColor3 = Color3.new(1,1,1)
+
+-- ปุ่มเปิด/ปิด ESP
+local espButton = Instance.new("TextButton", menuFrame)
+espButton.Size = UDim2.new(1,-20,0,40)
+espButton.Position = UDim2.new(0,10,0,40)
+espButton.Text = "ESP: เปิด"
+espButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+espButton.TextColor3 = Color3.new(1,1,1)
+
+espButton.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    if espEnabled then
+        espButton.Text = "ESP: เปิด"
+        espButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        espButton.Text = "ESP: ปิด"
+        espButton.BackgroundColor3 = Color3.fromRGB(150,0,0)
+        -- ลบ Highlight ทั้งหมด
+        for _,hl in pairs(highlightList) do
+            if hl and hl.Parent then hl:Destroy() end
+        end
+        highlightList = {}
+    end
+end)
+
+-- ฟังก์ชัน Highlight ศัตรู
+local function highlightEnemy(character)
+    if highlightList[character] then return end
+    local hl = Instance.new("Highlight")
+    hl.FillColor = Color3.fromRGB(255,0,0)
+    hl.OutlineColor = Color3.fromRGB(255,0,0)
+    hl.Parent = character
+    highlightList[character] = hl
+end
+
+-- Loop ตรวจจับศัตรูและ Highlight
+RunService.RenderStepped:Connect(function()
+    if not espEnabled then return end
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character then
+            highlightEnemy(plr.Character)
+        end
+    end
+end)
