@@ -1,0 +1,161 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- Settings
+local targetCircleSize = 80
+local espEnabled = true
+local autoShootEnabled = true
+local shootBehindWalls = true
+local highlightList = {}
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
+
+-- วงกลางจอ
+local targetCircle = Instance.new("Frame", gui)
+targetCircle.Size = UDim2.new(0, targetCircleSize, 0, targetCircleSize)
+targetCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+targetCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+targetCircle.BackgroundTransparency = 1
+targetCircle.BorderSizePixel = 3
+targetCircle.BorderColor3 = Color3.fromRGB(255,0,0)
+targetCircle.ZIndex = 10
+
+-- เมนู GUI
+local menuFrame = Instance.new("Frame", gui)
+menuFrame.Size = UDim2.new(0, 220, 0, 220)
+menuFrame.Position = UDim2.new(0.05,0,0.6,0)
+menuFrame.Active = true
+menuFrame.Draggable = true
+menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+menuFrame.BorderSizePixel = 2
+menuFrame.BorderColor3 = Color3.fromRGB(255,0,0)
+
+local title = Instance.new("TextLabel", menuFrame)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "🎯 ตั้งค่า"
+title.TextScaled = true
+title.BackgroundColor3 = Color3.fromRGB(255,0,0)
+title.TextColor3 = Color3.new(1,1,1)
+
+-- ปุ่มเปิด/ปิด ESP
+local espButton = Instance.new("TextButton", menuFrame)
+espButton.Size = UDim2.new(1,-20,0,40)
+espButton.Position = UDim2.new(0,10,0,40)
+espButton.Text = "ESP: เปิด"
+espButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+espButton.TextColor3 = Color3.new(1,1,1)
+
+espButton.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    if espEnabled then
+        espButton.Text = "ESP: เปิด"
+        espButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        espButton.Text = "ESP: ปิด"
+        espButton.BackgroundColor3 = Color3.fromRGB(150,0,0)
+        for _,hl in pairs(highlightList) do
+            if hl and hl.Parent then hl:Destroy() end
+        end
+        highlightList = {}
+    end
+end)
+
+-- ปุ่มเปิด/ปิด Auto Shoot
+local autoShootButton = Instance.new("TextButton", menuFrame)
+autoShootButton.Size = UDim2.new(1,-20,0,40)
+autoShootButton.Position = UDim2.new(0,10,0,90)
+autoShootButton.Text = "Auto Shoot: เปิด"
+autoShootButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+autoShootButton.TextColor3 = Color3.new(1,1,1)
+
+autoShootButton.MouseButton1Click:Connect(function()
+    autoShootEnabled = not autoShootEnabled
+    if autoShootEnabled then
+        autoShootButton.Text = "Auto Shoot: เปิด"
+        autoShootButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    else
+        autoShootButton.Text = "Auto Shoot: ปิด"
+        autoShootButton.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    end
+end)
+
+-- ปุ่มปรับขนาดวง
+local sizeLabel = Instance.new("TextLabel", menuFrame)
+sizeLabel.Size = UDim2.new(1,-20,0,30)
+sizeLabel.Position = UDim2.new(0,10,0,140)
+sizeLabel.Text = "ขนาดวง: "..targetCircleSize
+sizeLabel.TextScaled = true
+sizeLabel.BackgroundTransparency = 1
+sizeLabel.TextColor3 = Color3.new(1,1,1)
+
+local increaseCircle = Instance.new("TextButton", menuFrame)
+increaseCircle.Size = UDim2.new(0.45,-10,0,30)
+increaseCircle.Position = UDim2.new(0,10,0,170)
+increaseCircle.Text = "+"
+increaseCircle.BackgroundColor3 = Color3.fromRGB(0,150,0)
+
+local decreaseCircle = Instance.new("TextButton", menuFrame)
+decreaseCircle.Size = UDim2.new(0.45,-10,0,30)
+decreaseCircle.Position = UDim2.new(0.5,0,0,170)
+decreaseCircle.Text = "-"
+decreaseCircle.BackgroundColor3 = Color3.fromRGB(150,0,0)
+
+increaseCircle.MouseButton1Click:Connect(function()
+    targetCircleSize = math.clamp(targetCircleSize+10,20,300)
+    targetCircle.Size = UDim2.new(0,targetCircleSize,0,targetCircleSize)
+    sizeLabel.Text = "ขนาดวง: "..targetCircleSize
+end)
+
+decreaseCircle.MouseButton1Click:Connect(function()
+    targetCircleSize = math.clamp(targetCircleSize-10,20,300)
+    targetCircle.Size = UDim2.new(0,targetCircleSize,0,targetCircleSize)
+    sizeLabel.Text = "ขนาดวง: "..targetCircleSize
+end)
+
+-- ฟังก์ชันตรวจสอบวง
+local function isInCircle(pos)
+    local screenPos, onScreen = camera:WorldToViewportPoint(pos)
+    if not onScreen then return false end
+    local centerX, centerY = camera.ViewportSize.X/2, camera.ViewportSize.Y/2
+    local dx = screenPos.X - centerX
+    local dy = screenPos.Y - centerY
+    return (dx*dx + dy*dy) <= (targetCircleSize/2)^2
+end
+
+-- ฟังก์ชัน Highlight
+local function highlightEnemy(character)
+    if highlightList[character] then return end
+    local hl = Instance.new("Highlight")
+    hl.FillColor = Color3.fromRGB(255,0,0)
+    hl.OutlineColor = Color3.fromRGB(255,0,0)
+    hl.Parent = character
+    highlightList[character] = hl
+end
+
+-- ฟังก์ชัน Auto Shoot ตัวอย่าง (เรียก RemoteEvent ของปืน)
+local function autoShoot(enemyRoot)
+    local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("RemoteEvent") then
+        tool.RemoteEvent:FireServer(enemyRoot.Position)
+    end
+end
+
+-- Loop ตรวจจับศัตรูและ Highlight + Auto Shoot
+RunService.RenderStepped:Connect(function()
+    if not espEnabled then return end
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local root = plr.Character.HumanoidRootPart
+            highlightEnemy(plr.Character)
+            if autoShootEnabled and (shootBehindWalls or isInCircle(root.Position)) then
+                autoShoot(root)
+            end
+        end
+    end
+end)
