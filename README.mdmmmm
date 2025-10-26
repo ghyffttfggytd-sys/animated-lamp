@@ -1,0 +1,48 @@
+-- Educational Example: Noclip Toggle (สำหรับการเรียนรู้)
+-- สคริปต์นี้ทำให้ผู้เล่นเดินทะลุวัตถุได้เฉพาะในเกมที่คุณสร้างเอง
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local noclipEnabled = false
+
+-- สร้าง GUI สำหรับเปิด/ปิด noclip
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local toggleButton = Instance.new("TextButton", screenGui)
+toggleButton.Size = UDim2.new(0,150,0,40)
+toggleButton.Position = UDim2.new(0.4,0,0.8,0)
+toggleButton.Text = "🚫 Noclip: OFF"
+toggleButton.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+toggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+toggleButton.Active = true
+toggleButton.Draggable = true -- สามารถลากปุ่มไปที่ไหนก็ได้
+
+toggleButton.MouseButton1Click:Connect(function()
+	noclipEnabled = not noclipEnabled
+	if noclipEnabled then
+		toggleButton.Text = "✅ Noclip: ON"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(0,100,0)
+	else
+		toggleButton.Text = "🚫 Noclip: OFF"
+		toggleButton.BackgroundColor3 = Color3.fromRGB(100,0,0)
+	end
+end)
+
+-- ทำให้ Player สามารถทะลุวัตถุได้
+RunService.Stepped:Connect(function()
+	if noclipEnabled and player.Character then
+		for _, part in pairs(player.Character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	elseif player.Character then
+		for _, part in pairs(player.Character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
+	end
+end)
