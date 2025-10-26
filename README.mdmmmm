@@ -1,45 +1,45 @@
--- Educational Example: Noclip Toggle (สำหรับการเรียนรู้)
--- สคริปต์นี้ทำให้ผู้เล่นเดินทะลุวัตถุได้เฉพาะในเกมที่คุณสร้างเอง
+-- 🧠 ระบบ Noclip (เดินทะลุ) พร้อมปุ่มเปิด/ปิด
+-- ใช้ได้เฉพาะในเกมที่คุณสร้างเอง (Roblox Studio)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local noclipEnabled = false
+local character = player.Character or player.CharacterAdded:Wait()
+local noclip = false
 
--- สร้าง GUI สำหรับเปิด/ปิด noclip
+-- 🧭 สร้างปุ่ม GUI
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-local toggleButton = Instance.new("TextButton", screenGui)
-toggleButton.Size = UDim2.new(0,150,0,40)
-toggleButton.Position = UDim2.new(0.4,0,0.8,0)
-toggleButton.Text = "🚫 Noclip: OFF"
-toggleButton.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-toggleButton.TextColor3 = Color3.fromRGB(255,255,255)
-toggleButton.Active = true
-toggleButton.Draggable = true -- สามารถลากปุ่มไปที่ไหนก็ได้
+local button = Instance.new("TextButton", screenGui)
+button.Size = UDim2.new(0, 150, 0, 50)
+button.Position = UDim2.new(0.4, 0, 0.8, 0)
+button.Text = "🚫 Noclip: OFF"
+button.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Draggable = true
 
-toggleButton.MouseButton1Click:Connect(function()
-	noclipEnabled = not noclipEnabled
-	if noclipEnabled then
-		toggleButton.Text = "✅ Noclip: ON"
-		toggleButton.BackgroundColor3 = Color3.fromRGB(0,100,0)
+-- 🖲️ เมื่อกดปุ่ม
+button.MouseButton1Click:Connect(function()
+	noclip = not noclip
+	if noclip then
+		button.Text = "✅ Noclip: ON"
+		button.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
 	else
-		toggleButton.Text = "🚫 Noclip: OFF"
-		toggleButton.BackgroundColor3 = Color3.fromRGB(100,0,0)
+		button.Text = "🚫 Noclip: OFF"
+		button.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
 	end
 end)
 
--- ทำให้ Player สามารถทะลุวัตถุได้
+-- 🔄 อัปเดตทุกเฟรม
 RunService.Stepped:Connect(function()
-	if noclipEnabled and player.Character then
-		for _, part in pairs(player.Character:GetDescendants()) do
+	if noclip and character then
+		for _, part in pairs(character:GetDescendants()) do
 			if part:IsA("BasePart") then
 				part.CanCollide = false
 			end
 		end
-	elseif player.Character then
-		for _, part in pairs(player.Character:GetDescendants()) do
+	elseif character then
+		for _, part in pairs(character:GetDescendants()) do
 			if part:IsA("BasePart") then
 				part.CanCollide = true
 			end
