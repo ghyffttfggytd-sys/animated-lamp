@@ -1,48 +1,53 @@
--- 🧠 ระบบ Noclip (เดินทะลุ) พร้อมปุ่มเปิด/ปิด
--- ใช้ได้เฉพาะในเกมที่คุณสร้างเอง (Roblox Studio)
-
+-- 👑 ระบบ Noclip สำหรับแอดมินเท่านั้น
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local noclip = false
+-- 🔹 รายชื่อแอดมิน (เพิ่มชื่อ Roblox ของคุณตรงนี้)
+local adminList = {
+	["YourUsernameHere"] = true, -- ← เปลี่ยนเป็นชื่อของคุณ
+}
 
--- 🧭 สร้างปุ่ม GUI
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-local button = Instance.new("TextButton", screenGui)
-button.Size = UDim2.new(0, 150, 0, 50)
-button.Position = UDim2.new(0.4, 0, 0.8, 0)
-button.Text = "🚫 Noclip: OFF"
-button.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Draggable = true
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		local noclip = false
 
--- 🖲️ เมื่อกดปุ่ม
-button.MouseButton1Click:Connect(function()
-	noclip = not noclip
-	if noclip then
-		button.Text = "✅ Noclip: ON"
-		button.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-	else
+		-- 🧭 สร้างปุ่มเปิด/ปิด
+		local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+		local button = Instance.new("TextButton", screenGui)
+		button.Size = UDim2.new(0, 160, 0, 50)
+		button.Position = UDim2.new(0.4, 0, 0.8, 0)
 		button.Text = "🚫 Noclip: OFF"
 		button.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-	end
-end)
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		button.Draggable = true
+		button.Visible = adminList[player.Name] -- 🔒 ซ่อนไม่ให้คนอื่นเห็น
 
--- 🔄 อัปเดตทุกเฟรม
-RunService.Stepped:Connect(function()
-	if noclip and character then
-		for _, part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
+		button.MouseButton1Click:Connect(function()
+			noclip = not noclip
+			if noclip then
+				button.Text = "✅ Noclip: ON"
+				button.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+			else
+				button.Text = "🚫 Noclip: OFF"
+				button.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
 			end
-		end
-	elseif character then
-		for _, part in pairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = true
+		end)
+
+		-- 🔄 เปิด/ปิดฟังก์ชันเดินทะลุ
+		RunService.Stepped:Connect(function()
+			if noclip and adminList[player.Name] then
+				for _, part in pairs(character:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = false
+					end
+				end
+			else
+				for _, part in pairs(character:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = true
+					end
+				end
 			end
-		end
-	end
+		end)
+	end)
 end)
